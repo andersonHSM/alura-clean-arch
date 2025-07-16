@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "postgresql" // ou "mysql", "sqlite", etc.
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model Produto {
+  id      String         @id @default(uuid())
+  nome    String         @unique
+  preco   Float
+  estoque Int
+  itens   ItemCarrinho[]
+}
+
+model Carrinho {
+  id        String         @id @default(uuid())
+  usuarioId String         @unique
+  itens     ItemCarrinho[]
+}
+
+model ItemCarrinho {
+  id         String @id @default(uuid())
+  quantidade Int
+
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id])
+
+  carrinhoId String
+  carrinho   Carrinho @relation(fields: [carrinhoId], references: [id])
+
+  @@unique([produtoId, carrinhoId]) // Garante que um produto só pode ser adicionado uma vez por carrinho
+}
