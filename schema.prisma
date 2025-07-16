@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider     = "postgresql" // ou "mysql", "sqlite", etc.
-  url          = env("DATABASE_URL")
-  relationMode = "prisma"
+  provider = "postgresql" // ou "mysql", "sqlite", etc.
+  url      = "postgresql://admin:password123@localhost:5432/ecommerce"
 }
 
 model Produto {
