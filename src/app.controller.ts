@@ -19,30 +19,76 @@ import {
   Min,
 } from 'class-validator';
 import { Carrinho, PrismaClient } from '@prisma/client';
+import { ApiProperty, ApiOperation, ApiResponse, ApiTags, ApiParam } from '@nestjs/swagger';
 
 // --- DTOs (Data Transfer Objects) ---
 // Todos os DTOs foram movidos para este arquivo.
 
 export class CriarProdutoDto {
+  @ApiProperty({
+    description: 'Nome do produto',
+    example: 'Smartphone XYZ'
+  })
   @IsString() @IsNotEmpty() public nome: string;
+
+  @ApiProperty({
+    description: 'Preço do produto',
+    example: 1299.99,
+    minimum: 0.01
+  })
   @IsNumber() @Min(0.01) preco: number;
+
+  @ApiProperty({
+    description: 'Quantidade em estoque',
+    example: 50,
+    minimum: 0
+  })
   @IsNumber() @Min(0) estoque: number;
 }
 
 export class AtualizarProdutoDto {
+  @ApiProperty({
+    description: 'Nome do produto',
+    example: 'Smartphone XYZ',
+    required: false
+  })
   @IsOptional() @IsString() @IsNotEmpty() nome?: string;
+
+  @ApiProperty({
+    description: 'Preço do produto',
+    example: 1299.99,
+    minimum: 0.01,
+    required: false
+  })
   @IsOptional() @IsNumber() @Min(0.01) preco?: number;
+
+  @ApiProperty({
+    description: 'Quantidade em estoque',
+    example: 50,
+    minimum: 0,
+    required: false
+  })
   @IsOptional() @IsNumber() @Min(0) estoque?: number;
 }
 
 export class AdicionarItemDto {
+  @ApiProperty({
+    description: 'ID do produto',
+    example: 'c7d8e9f0-1a2b-3c4d-5e6f-7g8h9i0j1k2l'
+  })
   @IsString() @IsNotEmpty() produtoId: string;
 
+  @ApiProperty({
+    description: 'Quantidade do produto',
+    example: 1,
+    minimum: 1
+  })
   @IsNumber()
   @Min(1, { message: 'A quantidade deve ser de no mínimo 1.' })
   quantidade: number;
 }
 
+@ApiTags('produtos', 'carrinho')
 @Controller()
 export class AppController {
   // Instanciação direta do PrismaClient.
@@ -54,6 +100,15 @@ export class AppController {
 
   // --- MÉTODOS DO CONTROLLER DE PRODUTOS ---
 
+  @ApiOperation({ summary: 'Criar um novo produto' })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Produto criado com sucesso'
+  })
+  @ApiResponse({ 
+    status: 409, 
+    description: 'Já existe um produto com este nome' 
+  })
   @Post('produtos') async criarProduto(
     @Body() dadosDoProduto: CriarProdutoDto,
   ) {
@@ -72,10 +127,25 @@ export class AppController {
     return { mensagem: 'Produto criado com sucesso!', produto };
   }
 
+  @ApiOperation({ summary: 'Listar todos os produtos' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Lista de produtos retornada com sucesso'
+  })
   @Get('produtos') async listarTodos() {
     return this.prisma.produto.findMany();
   }
 
+  @ApiOperation({ summary: 'Obter um produto específico' })
+  @ApiParam({ name: 'id', description: 'ID do produto' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Produto encontrado'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Produto não encontrado' 
+  })
   @Get('produtos/:id') async buscarProdutoPorId(@Param('id') id: string) {
     const produto = await this.prisma.produto.findUnique({ where: { id } });
     if (!produto) {
@@ -84,6 +154,20 @@ export class AppController {
     return produto;
   }
 
+  @ApiOperation({ summary: 'Atualizar um produto existente' })
+  @ApiParam({ name: 'id', description: 'ID do produto' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Produto atualizado com sucesso'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Produto não encontrado' 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Dados inválidos para atualização' 
+  })
   @Put('produtos/:id') async atualizarProduto(
     @Param('id') id: string,
     @Body() dadosParaAtualizar: AtualizarProdutoDto,
@@ -104,6 +188,16 @@ export class AppController {
     return { mensagem: 'Produto atualizado!', produto: produtoAtualizado };
   }
 
+  @ApiOperation({ summary: 'Remover um produto' })
+  @ApiParam({ name: 'id', description: 'ID do produto' })
+  @ApiResponse({ 
+    status: 204, 
+    description: 'Produto removido com sucesso' 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Produto não encontrado' 
+  })
   @Delete('produtos/:id') @HttpCode(204) async removerProduto(
     @Param('id') id: string,
   ) {
@@ -113,6 +207,19 @@ export class AppController {
 
   // --- MÉTODOS DO CONTROLLER DE CARRINHO ---
 
+  @ApiOperation({ summary: 'Adicionar item ao carrinho' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Item adicionado ao carrinho com sucesso' 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Produto não encontrado' 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Estoque insuficiente' 
+  })
   @Post('carrinho/adicionar') async adicionarItem(
     @Body() itemDto: AdicionarItemDto,
   ) {
@@ -167,11 +274,26 @@ export class AppController {
     };
   }
 
+  @ApiOperation({ summary: 'Ver carrinho atual' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Carrinho retornado com sucesso' 
+  })
   @Get('carrinho') async verCarrinho() {
     const carrinho = await this.obterOuCriarCarrinho();
     return this.formatarCarrinho(carrinho);
   }
 
+  @ApiOperation({ summary: 'Remover item do carrinho' })
+  @ApiParam({ name: 'produtoId', description: 'ID do produto a ser removido' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Item removido do carrinho com sucesso' 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Produto não está no carrinho' 
+  })
   @Delete('carrinho/remover/:produtoId') async removerItem(
     @Param('produtoId') produtoId: string,
   ) {
